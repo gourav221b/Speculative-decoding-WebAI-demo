@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speculative Decoding Demo - Interactive LLM Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Using direct CDN imports in script.js to avoid module resolution issues -->
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <h1 class="title">Speculative Decoding Demo</h1>
+            <p class="subtitle">Interactive visualization of how small models draft tokens and large models verify them
+            </p>
+            <div class="instructions">
+                <p><strong>How it works:</strong> The small model drafts multiple tokens ahead, then the large model
+                    verifies them. Accepted tokens are shown in <span
+                        style="color: #166534; background: #dcfce7; padding: 2px 4px; border-radius: 3px;">green</span>,
+                    rejected ones in <span
+                        style="color: #dc2626; background: #fee2e2; padding: 2px 4px; border-radius: 3px;">red</span>.
+                </p>
+                <p><strong>Tip:</strong> Start with mock mode enabled for instant results, then disable it to use real
+                    AI models.</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="input-group">
+                    <label for="prompt-input" class="input-label">Enter your prompt:</label>
+                    <textarea id="prompt-input" class="prompt-input"
+                        placeholder="Type your prompt here... (e.g., 'The quick brown fox', 'Once upon a time', 'The cat sat on')"
+                        rows="3">The quick brown fox</textarea>
+                </div>
+
+                <!-- Controls -->
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="k-value" class="control-label">Speculative tokens (k):</label>
+                        <input type="number" id="k-value" class="control-input" value="4" min="1" max="8">
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">
+                            <input type="checkbox" id="mock-mode" class="checkbox">
+                            Mock mode (faster testing)
+                        </label>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">
+                            <input type="checkbox" id="artificial-latency" class="checkbox">
+                            Add artificial latency
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Model Status -->
+                <div class="model-status">
+                    <div class="model-info">
+                        <div class="model-item">
+                            <div class="model-details">
+                                <span class="model-name">Small Model (DistilGPT-2)</span>
+                                <span class="model-size">~82M parameters</span>
+                            </div>
+                            <span id="small-model-status" class="status-badge mock">Mock Mode</span>
+                        </div>
+                        <div class="model-item">
+                            <div class="model-details">
+                                <span class="model-name">Large Model (GPT-2)</span>
+                                <span class="model-size">~124M parameters</span>
+                            </div>
+                            <span id="large-model-status" class="status-badge mock">Mock Mode</span>
+                        </div>
+                    </div>
+                    <button id="load-models-btn" class="btn btn-accent">
+                        <span class="btn-text">Load Real AI Models</span>
+                        <div class="btn-spinner hidden"></div>
+                    </button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="button-group">
+                    <button id="generate-btn" class="btn btn-primary">
+                        <span class="btn-text">Generate</span>
+                        <div class="btn-spinner hidden"></div>
+                    </button>
+                    <button id="reset-btn" class="btn btn-secondary">Reset</button>
+                </div>
+            </section>
+
+            <!-- Output Section -->
+            <section class="output-section">
+                <div class="output-header">
+                    <h3>Generated Text</h3>
+                    <div class="progress-info">
+                        <span id="progress-text">Ready to generate</span>
+                        <span id="character-count">0/100 characters</span>
+                    </div>
+                </div>
+
+                <div id="output-area" class="output-area">
+                    <div class="placeholder-text">Generated tokens will appear here...</div>
+                </div>
+
+                <!-- Legend -->
+                <div class="legend">
+                    <h4>Token Status Legend:</h4>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <span class="token-example accepted">accepted</span>
+                            <span class="legend-text">Verified by large model</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="token-example rejected">rejected</span>
+                            <span class="legend-text">Rejected and corrected</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="token-example pending">pending</span>
+                            <span class="legend-text">Drafted, awaiting verification</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section class="stats-section">
+                <h3>Performance Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="total-tokens">0</span>
+                        <span class="stat-label">Total Tokens</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="accepted-tokens">0</span>
+                        <span class="stat-label">Accepted</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="rejected-tokens">0</span>
+                        <span class="stat-label">Rejected</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="efficiency-rate">0%</span>
+                        <span class="stat-label">Efficiency</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="model-calls-saved">0</span>
+                        <span class="stat-label">Calls Saved</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Log Section -->
+            <section class="log-section">
+                <div class="log-header">
+                    <h3>Generation Log</h3>
+                    <button id="clear-log-btn" class="btn btn-small">Clear Log</button>
+                </div>
+                <div id="log-area" class="log-area">
+                    <div class="log-placeholder">Generation steps will be logged here...</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>
+                <a href="comparison.html">🚀 Speed Comparison</a> |
+                <a href="simple-comparison.html">📊 Simple Comparison</a> |
+                <a href="troubleshooting.html">🔧 Troubleshooting</a> |
+                <a href="https://openai.com/research/accelerating-gpt-with-speculative-decoding" target="_blank">
+                    📚 OpenAI Research
+                </a>
+            </p>
+        </footer>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Loading models...</p>
+                <p class="loading-subtext">This may take a moment on first load</p>
+                <div class="loading-progress">
+                    <div class="progress-bar">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="progress-details" class="progress-details">Initializing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Check if import maps are supported, otherwise show helpful error
+        if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('importmap')) {
+            console.warn('Import maps not supported in this browser. Using CDN fallback.');
+        }
+    </script>
+    <script type="module" src="script.js"
+        onerror="console.error('Failed to load script.js'); document.write('<script src=\'script-compatible.js\'><\/script>')"></script>
+
+    <!-- Fallback compatible script -->
+    <noscript>
+        <script src="script-compatible.js"></script>
+    </noscript>
+
+    <!-- Fallback error handling -->
+    <script>
+        window.addEventListener('error', function (e) {
+            if (e.message && e.message.includes('Failed to resolve module specifier')) {
+                console.error('Module loading failed. Please ensure you have a modern browser that supports ES6 modules and import maps.');
+                document.getElementById('loading-overlay').classList.add('hidden');
+                alert('Module loading failed. The app will run in mock mode only. Please use a modern browser for full functionality.');
+            }
+        });
+    </script>
+</body>
+
+</html>

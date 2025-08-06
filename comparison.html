@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Comparison - Speculative vs Sequential Decoding</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .method-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .method-panel.speculative {
+            border-left: 4px solid #10b981;
+        }
+
+        .method-panel.sequential {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .method-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .method-title.speculative {
+            color: #10b981;
+        }
+
+        .method-title.sequential {
+            color: #f59e0b;
+        }
+
+        .speed-indicator {
+            font-size: 2rem;
+        }
+
+        .output-area-comparison {
+            min-height: 150px;
+            padding: 1rem;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin: 1rem 0;
+            overflow-wrap: break-word;
+        }
+
+        .stats-comparison {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .winner-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #10b981;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transform: rotate(15deg);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .method-panel {
+            position: relative;
+        }
+
+        .progress-bar-comparison {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill-comparison {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill-comparison.speculative {
+            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        }
+
+        .progress-fill-comparison.sequential {
+            background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .summary-panel {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .speedup-display {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #10b981;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .comparison-container {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <h1 class="title">Speed Comparison Demo</h1>
+            <p class="subtitle">Compare speculative decoding vs sequential generation performance</p>
+            <div class="instructions">
+                <p><strong>How it works:</strong> Enter a prompt and watch both methods generate text simultaneously.
+                    Speculative decoding uses a small model to draft tokens ahead, while sequential generation uses only
+                    the large model one token at a time.</p>
+                <p><strong>Expected Result:</strong> Speculative decoding should be significantly faster while
+                    maintaining similar quality.</p>
+                <p><strong>Real vs Mock:</strong> Start with mock mode for instant demonstration, then load real AI
+                    models for authentic performance comparison.</p>
+            </div>
+        </header>
+
+        <!-- Input Section -->
+        <section class="input-section">
+            <div class="input-group">
+                <label for="comparison-prompt" class="input-label">Enter your prompt for comparison:</label>
+                <textarea id="comparison-prompt" class="prompt-input"
+                    placeholder="Type your prompt here... (e.g., 'The future of artificial intelligence')"
+                    rows="3">The future of artificial intelligence</textarea>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <label for="target-length" class="control-label">Target length (tokens):</label>
+                    <input type="number" id="target-length" class="control-input" value="20" min="10" max="50">
+                </div>
+
+                <div class="control-group">
+                    <label for="k-value-comparison" class="control-label">Speculative tokens (k):</label>
+                    <input type="number" id="k-value-comparison" class="control-input" value="4" min="1" max="8">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <input type="checkbox" id="mock-mode-comparison" class="checkbox" checked>
+                        Mock mode (for demonstration)
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <input type="checkbox" id="enable-streaming-comparison" class="checkbox" checked>
+                        Enable streaming
+                    </label>
+                </div>
+            </div>
+
+            <!-- Model Status -->
+            <div class="model-status">
+                <div class="model-info">
+                    <div class="model-item">
+                        <div class="model-details">
+                            <span class="model-name">Small Model (DistilGPT-2)</span>
+                            <span class="model-size">~82M parameters</span>
+                        </div>
+                        <span id="small-model-status-comparison" class="status-badge mock">Mock Mode</span>
+                    </div>
+                    <div class="model-item">
+                        <div class="model-details">
+                            <span class="model-name">Large Model (GPT-2)</span>
+                            <span class="model-size">~124M parameters</span>
+                        </div>
+                        <span id="large-model-status-comparison" class="status-badge mock">Mock Mode</span>
+                    </div>
+                </div>
+                <button id="load-models-comparison-btn" class="btn btn-accent">
+                    <span class="btn-text">Load Real AI Models</span>
+                    <div class="btn-spinner hidden"></div>
+                </button>
+            </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="button-group">
+        <button id="start-comparison-btn" class="btn btn-primary">
+            <span class="btn-text">Start Comparison</span>
+            <div class="btn-spinner hidden"></div>
+        </button>
+        <button id="reset-comparison-btn" class="btn btn-secondary">Reset</button>
+    </div>
+    </section>
+
+    <!-- Comparison Results -->
+    <div class="comparison-container">
+        <!-- Speculative Decoding Panel -->
+        <div class="method-panel speculative">
+            <div class="method-title speculative">
+                <span class="speed-indicator">🚀</span>
+                Speculative Decoding
+            </div>
+            <p class="method-description">Uses small model to draft tokens, large model to verify</p>
+
+
+
+            <div id="speculative-output" class="output-area-comparison">
+                <div class="placeholder-text">Waiting to start...</div>
+            </div>
+
+            <div class="stats-comparison">
+                <div class="stat-card">
+                    <div id="speculative-time" class="stat-value">0.0s</div>
+                    <div class="stat-label">Total Time</div>
+                </div>
+                <div class="stat-card">
+                    <div id="speculative-calls" class="stat-value">0</div>
+                    <div class="stat-label">Model Calls</div>
+                </div>
+                <div class="stat-card">
+                    <div id="speculative-efficiency" class="stat-value">0%</div>
+                    <div class="stat-label">Efficiency</div>
+                </div>
+                <div class="stat-card">
+                    <div id="speculative-tokens-per-sec" class="stat-value">0</div>
+                    <div class="stat-label">Tokens/sec</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sequential Decoding Panel -->
+        <div class="method-panel sequential">
+            <div class="method-title sequential">
+                <span class="speed-indicator">🐌</span>
+                Sequential Generation
+            </div>
+            <p class="method-description">Uses large model to generate one token at a time</p>
+
+
+
+            <div id="sequential-output" class="output-area-comparison">
+                <div class="placeholder-text">Waiting to start...</div>
+            </div>
+
+            <div class="stats-comparison">
+                <div class="stat-card">
+                    <div id="sequential-time" class="stat-value">0.0s</div>
+                    <div class="stat-label">Total Time</div>
+                </div>
+                <div class="stat-card">
+                    <div id="sequential-calls" class="stat-value">0</div>
+                    <div class="stat-label">Model Calls</div>
+                </div>
+                <div class="stat-card">
+                    <div id="sequential-efficiency" class="stat-value">100%</div>
+                    <div class="stat-label">Efficiency</div>
+                </div>
+                <div class="stat-card">
+                    <div id="sequential-tokens-per-sec" class="stat-value">0</div>
+                    <div class="stat-label">Tokens/sec</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Panel -->
+    <div class="summary-panel">
+        <h2>Performance Summary</h2>
+        <div id="comparison-summary">
+            <p>Run a comparison to see the performance difference!</p>
+        </div>
+        <div id="speedup-result" class="speedup-display" style="display: none;">
+            0x faster
+        </div>
+        <div id="detailed-analysis" style="display: none;">
+            <h3>Analysis</h3>
+            <div id="analysis-content"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>
+            <a href="index.html">← Back to Main Demo</a> |
+            <a href="troubleshooting.html">Troubleshooting Guide</a>
+        </p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay-comparison" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading AI Models</p>
+            <p class="loading-subtext">This may take a few minutes on first load</p>
+            <div class="loading-progress">
+                <div class="progress-bar">
+                    <div id="progress-fill-comparison" class="progress-fill"></div>
+                </div>
+                <p id="progress-details-comparison" class="progress-details">Initializing...</p>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="comparison.js"></script>
+</body>
+
+</html>

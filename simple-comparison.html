@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Speed Comparison - Speculative vs Sequential</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .simple-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .method-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .method-panel.speculative {
+            border-left: 4px solid #10b981;
+        }
+
+        .method-panel.sequential {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .method-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .method-title.speculative {
+            color: #10b981;
+        }
+
+        .method-title.sequential {
+            color: #f59e0b;
+        }
+
+        .output-text {
+            min-height: 200px;
+            max-height: 400px;
+            padding: 1rem;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            overflow-x: hidden;
+            overflow-y: auto;
+            hyphens: auto;
+        }
+
+        .stats-simple {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-item {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .summary-simple {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .speedup-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #10b981;
+            margin: 1rem 0;
+        }
+
+        /* Ensure proper text handling across all elements */
+        .method-panel {
+            overflow: hidden;
+        }
+
+        .method-description {
+            margin-bottom: 1rem;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .simple-comparison {
+                grid-template-columns: 1fr;
+            }
+
+            .output-text {
+                font-size: 0.9rem;
+                max-height: 300px;
+            }
+
+            .stats-simple {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <h1 class="title">Simple Speed Comparison</h1>
+            <p class="subtitle">Raw performance comparison without fancy visualizations</p>
+            <div class="instructions">
+                <p><strong>How it works:</strong> Both methods generate the same text, but speculative decoding should
+                    be faster by using a small model to draft tokens ahead.</p>
+                <p><strong>Output:</strong> Plain text output as it would appear in a normal scenario, with timing and
+                    efficiency statistics.</p>
+            </div>
+        </header>
+
+        <!-- Input Section -->
+        <section class="input-section">
+            <div class="input-group">
+                <label for="simple-prompt" class="input-label">Enter your prompt:</label>
+                <textarea id="simple-prompt" class="prompt-input" placeholder="Type your prompt here..."
+                    rows="3">The future of artificial intelligence</textarea>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <div class="control-group">
+                    <label for="simple-target-length" class="control-label">Target tokens:</label>
+                    <input type="number" id="simple-target-length" class="control-input" value="20" min="10" max="50">
+                </div>
+
+                <div class="control-group">
+                    <label for="simple-k-value" class="control-label">Speculative tokens (k):</label>
+                    <input type="number" id="simple-k-value" class="control-input" value="4" min="1" max="8">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <input type="checkbox" id="simple-mock-mode" class="checkbox" checked>
+                        Mock mode
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <input type="checkbox" id="simple-streaming" class="checkbox" checked>
+                        Enable streaming
+                    </label>
+                </div>
+            </div>
+
+            <!-- Model Status -->
+            <div class="model-status">
+                <div class="model-info">
+                    <div class="model-item">
+                        <div class="model-details">
+                            <span class="model-name">Small Model (DistilGPT-2)</span>
+                            <span class="model-size">~82M parameters</span>
+                        </div>
+                        <span id="simple-small-status" class="status-badge mock">Mock Mode</span>
+                    </div>
+                    <div class="model-item">
+                        <div class="model-details">
+                            <span class="model-name">Large Model (GPT-2)</span>
+                            <span class="model-size">~124M parameters</span>
+                        </div>
+                        <span id="simple-large-status" class="status-badge mock">Mock Mode</span>
+                    </div>
+                </div>
+                <button id="simple-load-models-btn" class="btn btn-accent">
+                    <span class="btn-text">Load Real AI Models</span>
+                    <div class="btn-spinner hidden"></div>
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="button-group">
+                <button id="simple-start-btn" class="btn btn-primary">
+                    <span class="btn-text">Start Comparison</span>
+                    <div class="btn-spinner hidden"></div>
+                </button>
+                <button id="simple-reset-btn" class="btn btn-secondary">Reset</button>
+            </div>
+        </section>
+
+        <!-- Comparison Results -->
+        <div class="simple-comparison">
+            <!-- Speculative Decoding Panel -->
+            <div class="method-panel speculative">
+                <div class="method-title speculative">Speculative Decoding</div>
+                <p class="method-description">Small model drafts, large model verifies</p>
+
+                <div id="speculative-text" class="output-text">Waiting to start...</div>
+
+                <div class="stats-simple">
+                    <div class="stat-item">
+                        <div id="spec-time" class="stat-value">0.0s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="spec-calls" class="stat-value">0</div>
+                        <div class="stat-label">Model Calls</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="spec-efficiency" class="stat-value">0%</div>
+                        <div class="stat-label">Efficiency</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="spec-speed" class="stat-value">0</div>
+                        <div class="stat-label">Tokens/sec</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sequential Generation Panel -->
+            <div class="method-panel sequential">
+                <div class="method-title sequential">Sequential Generation</div>
+                <p class="method-description">Large model generates one token at a time</p>
+
+                <div id="sequential-text" class="output-text">Waiting to start...</div>
+
+                <div class="stats-simple">
+                    <div class="stat-item">
+                        <div id="seq-time" class="stat-value">0.0s</div>
+                        <div class="stat-label">Time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="seq-calls" class="stat-value">0</div>
+                        <div class="stat-label">Model Calls</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="seq-efficiency" class="stat-value">100%</div>
+                        <div class="stat-label">Efficiency</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="seq-speed" class="stat-value">0</div>
+                        <div class="stat-label">Tokens/sec</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-simple">
+            <h2>Performance Summary</h2>
+            <div id="simple-summary">
+                <p>Run a comparison to see the results!</p>
+            </div>
+            <div id="simple-speedup" class="speedup-number" style="display: none;">0x faster</div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>
+                <a href="index.html">← Main Demo</a> |
+                <a href="comparison.html">Fancy Comparison</a> |
+                <a href="troubleshooting.html">Troubleshooting</a>
+            </p>
+        </footer>
+
+        <!-- Loading Overlay -->
+        <div id="simple-loading-overlay" class="loading-overlay hidden">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Loading AI Models</p>
+                <p class="loading-subtext">This may take a few minutes</p>
+                <div class="loading-progress">
+                    <div class="progress-bar">
+                        <div id="simple-progress-fill" class="progress-fill"></div>
+                    </div>
+                    <p id="simple-progress-details" class="progress-details">Initializing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="simple-comparison.js"></script>
+</body>
+
+</html>
